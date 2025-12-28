@@ -1,0 +1,130 @@
+// This is your database design file
+// Think of each "model" as an Excel sheet
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")  // We'll set this later
+}
+
+// ========== TABLES (Excel Sheets) ==========
+
+// 1. USERS TABLE - Stores all people
+model User {
+  id           String    @id @default(uuid())  // Unique ID
+  email        String?   @unique               // Email (optional)
+  phone        String?   @unique               // Phone (optional)
+  name         String                          // Full name
+  role         UserRole  @default(RIDER)       // RIDER, DRIVER, or ADMIN
+  passwordHash String?                         // Encrypted password
+  verified     Boolean   @default(false)       // Email/phone verified?
+  createdAt    DateTime  @default(now())       // Account creation date
+  updatedAt    DateTime  @updatedAt            // Last update date
+  
+  // Connections to other tables
+  profile   Profile?                           // Extra user info
+  vehicles  Vehicle[]                          // Driver's vehicles
+  tripsAsRider Trip[]                          // Rides as passenger
+  tripsAsDriver Trip[]?                        // Rides as driver
+  payments  Payment[]                          // Payment history
+  
+  @@index([email])   // Faster email searches
+  @@index([phone])   // Faster phone searches
+  @@index([role])    // Faster role filtering
+}
+
+// 2. PROFILES TABLE - Extra user info
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique  // Links to User
+  avatarUrl String?           // Profile picture
+  bio       String?           // About me
+  rating    Float?   @default(5.0)  // 1-5 star rating
+  
+  // Relations
+  user   User     @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 3. VEHICLES TABLE - Driver's cars
+model Vehicle {
+  id          String   @id @default(uuid())
+  driverId    String   // Which driver owns this
+  make        String   // Toyota
+  model       String   // Camry
+  year        Int      // 2022
+  plateNumber String   @unique  // ABC123XYZ
+  color       String   // Blue
+  verified    Boolean  @default(false)  // Admin approved?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  driver User @relation(fields: [driverId], references: [id])
+  
+  @@index([driverId])
+  @@index([plateNumber])
+}
+
+// 4. TRIPS TABLE - Every ride requested
+model Trip {
+  id          String     @id @default(uuid())
+  riderId     String     // Who requested ride
+  driverId    String?    // Who accepted (optional)
+  origin      String     // Pickup location
+  destination String     // Dropoff location
+  fare        Decimal    @default(0)  // Price
+  status      TripStatus @default(REQUESTED)  // See status options below
+  scheduledAt DateTime?  // Future ride time
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  rider  User @relation("RiderTrips", fields: [riderId], references: [id])
+  driver User? @relation("DriverTrips", fields: [driverId], references: [id])
+  payment Payment?
+}
+
+// 5. PAYMENTS TABLE - Payment records
+model Payment {
+  id        String        @id @default(uuid())
+  tripId    String        // Which trip
+  payerId   String        // Who paid
+  amount    Decimal       // How much
+  provider  String        // Paystack, Stripe, etc.
+  status    PaymentStatus @default(PENDING)  // PENDING, PAID, FAILED
+  createdAt DateTime      @default(now())
+  
+  // Relations
+  trip  Trip @relation(fields: [tripId], references: [id])
+  payer User @relation(fields: [payerId], references: [id])
+}
+
+// ========== OPTIONS (Dropdown Choices) ==========
+
+// User can be: RIDER, DRIVER, or ADMIN
+enum UserRole {
+  RIDER
+  DRIVER
+  ADMIN
+}
+
+// Trip can be in these states:
+enum TripStatus {
+  REQUESTED   // Rider asked for ride
+  ACCEPTED    // Driver accepted
+  ONGOING     // Trip in progress
+  COMPLETED   // Trip finished
+  CANCELLED   // Trip cancelled
+}
+
+// Payment status options:
+enum PaymentStatus {
+  PENDING  // Waiting payment
+  PAID     // Successful
+  FAILED   // Failed payment
+}
