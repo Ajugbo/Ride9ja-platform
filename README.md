@@ -1,10 +1,15 @@
-# 🚗 Ride9ja Platform - Backend & Admin Dashboard
+# 🚗 Ride9ja API Backend
 
-This is the backend API and admin dashboard for the Ride9ja ride-hailing service.
+Fastify-based backend API for Ride9ja ride-hailing platform.
 
-## 🌐 Live Sites
-- **Frontend (Public):** https://ajugbo.github.io/ride9ja/
-- **Admin Dashboard:** *Coming soon*
-- **API:** *Coming soon*
+## 🚀 Quick Start
 
-## 📁 Project Structure
+### Prerequisites
+- Node.js 18+ and npm
+- Docker (for local database) OR PostgreSQL installed
+
+### Option A: Local Development with Docker (Recommended)
+
+1. **Start database:**
+   ```bash
+   docker-compose up -d
