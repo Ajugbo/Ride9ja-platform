@@ -1,0 +1,33 @@
+# This file sets up a local PostgreSQL database
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ride9ja-db
+    environment:
+      POSTGRES_USER: ride9ja_user
+      POSTGRES_PASSWORD: ride9ja_password
+      POSTGRES_DB: ride9ja_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ride9ja_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Admin interface for database (optional)
+  adminer:
+    image: adminer
+    container_name: ride9ja-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
