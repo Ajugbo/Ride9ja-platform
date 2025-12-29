@@ -1,0 +1,52 @@
+name: UI CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ui/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'ui/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'ui/package-lock.json'
+    
+    - name: Install dependencies
+      working-directory: ./ui
+      run: npm ci
+    
+    - name: Run lint
+      working-directory: ./ui
+      run: npm run lint
+    
+    - name: Build
+      working-directory: ./ui
+      run: npm run build
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to Vercel
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      run: |
+        echo "Deployment would happen here"
+        echo "Configure Vercel deployment in project settings"
