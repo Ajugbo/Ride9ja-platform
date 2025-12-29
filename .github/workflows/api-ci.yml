@@ -1,0 +1,68 @@
+name: API CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'api/package-lock.json'
+    
+    - name: Install dependencies
+      working-directory: ./api
+      run: npm ci
+    
+    - name: Generate Prisma Client
+      working-directory: ./api
+      run: npx prisma generate
+    
+    - name: Run tests
+      working-directory: ./api
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        JWT_SECRET: test_secret
+      run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to Railway
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        echo "Deployment would happen here"
+        echo "Configure Railway deployment in project settings"
