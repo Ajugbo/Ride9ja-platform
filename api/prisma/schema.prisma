@@ -1,130 +1,120 @@
-// This is your database design file
-// Think of each "model" as an Excel sheet
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")  // We'll set this later
+  url      = env("DATABASE_URL")
 }
 
-// ========== TABLES (Excel Sheets) ==========
+// ========== TABLES MATCHING YOUR SUPABASE DATABASE ==========
 
-// 1. USERS TABLE - Stores all people
+// 1. USERS TABLE (main user management - matches Supabase 'users' table)
 model User {
-  id           String    @id @default(uuid())  // Unique ID
-  email        String?   @unique               // Email (optional)
-  phone        String?   @unique               // Phone (optional)
-  name         String                          // Full name
-  role         UserRole  @default(RIDER)       // RIDER, DRIVER, or ADMIN
-  passwordHash String?                         // Encrypted password
-  verified     Boolean   @default(false)       // Email/phone verified?
-  createdAt    DateTime  @default(now())       // Account creation date
-  updatedAt    DateTime  @updatedAt            // Last update date
-  
-  // Connections to other tables
-  profile   Profile?                           // Extra user info
-  vehicles  Vehicle[]                          // Driver's vehicles
-  tripsAsRider Trip[]                          // Rides as passenger
-  tripsAsDriver Trip[]?                        // Rides as driver
-  payments  Payment[]                          // Payment history
-  
-  @@index([email])   // Faster email searches
-  @@index([phone])   // Faster phone searches
-  @@index([role])    // Faster role filtering
-}
-
-// 2. PROFILES TABLE - Extra user info
-model Profile {
-  id        String   @id @default(uuid())
-  userId    String   @unique  // Links to User
-  avatarUrl String?           // Profile picture
-  bio       String?           // About me
-  rating    Float?   @default(5.0)  // 1-5 star rating
+  id           String    @id @default(uuid())
+  email        String?   @unique @map("email")
+  phone        String?   @unique @map("phone")
+  name         String    @map("name")
+  role         String    @default("RIDER") @map("role")
+  passwordHash String?   @map("password_hash")
+  verified     Boolean   @default(false) @map("verified")
+  avatar       String?   @map("avatar")
+  bio          String?   @map("bio")
+  rating       Float?    @map("rating")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
   
   // Relations
-  user   User     @relation(fields: [userId], references: [id])
+  vehicles      Vehicle[]
+  tripsAsRider  Trip[]    @relation("RiderTrips")
+  tripsAsDriver Trip[]?   @relation("DriverTrips")
+  payments      Payment[]
   
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@map("users")
 }
 
-// 3. VEHICLES TABLE - Driver's cars
+// 2. VEHICLES TABLE (matches Supabase 'vehicles' table)
 model Vehicle {
   id          String   @id @default(uuid())
-  driverId    String   // Which driver owns this
-  make        String   // Toyota
-  model       String   // Camry
-  year        Int      // 2022
-  plateNumber String   @unique  // ABC123XYZ
-  color       String   // Blue
-  verified    Boolean  @default(false)  // Admin approved?
-  createdAt   DateTime @default(now())
+  driverId    String   @map("driver_id")
+  make        String   @map("make")
+  model       String   @map("model")
+  year        Int?     @map("year")
+  plateNumber String   @unique @map("plate_number")
+  color       String   @map("color")
+  verified    Boolean  @default(false) @map("verified")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
   
   // Relations
   driver User @relation(fields: [driverId], references: [id])
   
+  @@map("vehicles")
   @@index([driverId])
-  @@index([plateNumber])
 }
 
-// 4. TRIPS TABLE - Every ride requested
+// 3. TRIPS TABLE (matches Supabase 'trips' table)
 model Trip {
-  id          String     @id @default(uuid())
-  riderId     String     // Who requested ride
-  driverId    String?    // Who accepted (optional)
-  origin      String     // Pickup location
-  destination String     // Dropoff location
-  fare        Decimal    @default(0)  // Price
-  status      TripStatus @default(REQUESTED)  // See status options below
-  scheduledAt DateTime?  // Future ride time
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id           String   @id @default(uuid())
+  riderId      String   @map("rider_id")
+  driverId     String?  @map("driver_id")
+  origin       String   @map("origin")
+  destination  String   @map("destination")
+  fare         Float?   @map("fare")
+  status       String   @default("REQUESTED") @map("status")
+  scheduledAt  DateTime? @map("scheduled_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
   
   // Relations
-  rider  User @relation("RiderTrips", fields: [riderId], references: [id])
-  driver User? @relation("DriverTrips", fields: [driverId], references: [id])
-  payment Payment?
+  rider    User @relation("RiderTrips", fields: [riderId], references: [id])
+  driver   User? @relation("DriverTrips", fields: [driverId], references: [id])
+  payment  Payment?
+  
+  @@map("trips")
 }
 
-// 5. PAYMENTS TABLE - Payment records
+// 4. PAYMENTS TABLE (matches Supabase 'payments' table)
 model Payment {
-  id        String        @id @default(uuid())
-  tripId    String        // Which trip
-  payerId   String        // Who paid
-  amount    Decimal       // How much
-  provider  String        // Paystack, Stripe, etc.
-  status    PaymentStatus @default(PENDING)  // PENDING, PAID, FAILED
-  createdAt DateTime      @default(now())
+  id        String   @id @default(uuid())
+  tripId    String   @map("trip_id")
+  payerId   String   @map("payer_id")
+  amount    Float    @map("amount")
+  provider  String   @map("provider")
+  status    String   @default("PENDING") @map("status")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   
   // Relations
   trip  Trip @relation(fields: [tripId], references: [id])
   payer User @relation(fields: [payerId], references: [id])
+  
+  @@map("payments")
 }
 
-// ========== OPTIONS (Dropdown Choices) ==========
+// ========== ENUMS (Optional - you can use strings instead) ==========
+// Note: Your Supabase uses strings, not enums, so we're using String type above
+// If you want type safety, you can add these enums and change field types to enum
 
-// User can be: RIDER, DRIVER, or ADMIN
+/*
 enum UserRole {
   RIDER
   DRIVER
   ADMIN
 }
 
-// Trip can be in these states:
 enum TripStatus {
-  REQUESTED   // Rider asked for ride
-  ACCEPTED    // Driver accepted
-  ONGOING     // Trip in progress
-  COMPLETED   // Trip finished
-  CANCELLED   // Trip cancelled
+  REQUESTED
+  ACCEPTED
+  ONGOING
+  COMPLETED
+  CANCELLED
 }
 
-// Payment status options:
 enum PaymentStatus {
-  PENDING  // Waiting payment
-  PAID     // Successful
-  FAILED   // Failed payment
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
 }
+*/
